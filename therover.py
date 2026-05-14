@@ -8,6 +8,7 @@ import time
 from MotorDriver import MotorDriver
 from micropython import const
 import ssd1306
+from ServoDriver import ServoDriver
 
 #====== setup the I2C communication
 i2c = I2C(1, sda=Pin(18), scl=Pin(19))
@@ -15,7 +16,7 @@ i2c = I2C(1, sda=Pin(18), scl=Pin(19))
 # Set up the OLED display (128x64 pixels) on the I2C bus
 # SSD1306_I2C is a subclass of FrameBuffer. FrameBuffer provides support for graphics primitives.
 ## http://docs.micropython.org/en/latest/pyboard/library/framebuf.html#
-#oled = ssd1306.SSD1306_I2C(128, 64, i2c)
+oled = ssd1306.SSD1306_I2C(128, 64, i2c)
 
 def oledClearWhite():
     # Clear the display by filling it with white and then showing the update
@@ -37,18 +38,6 @@ def display(text, row):
     #time.sleep(1)  # Wait for 1 second    
 
 buzzer = PWM(Pin(15))
-
-
-NOTES = {
-    'LEFT': 262,
-    'RIGHT': 294,
-    'SLOW': 330,
-    'MEDIUM': 349,
-    'FAST': 392,
-    'FORWARD': 440,
-    'BACK': 494,
-    'LOCK_UNLOCK': 523
-}
 
 _IRQ_CENTRAL_CONNECT = const(1)
 _IRQ_CENTRAL_DISCONNECT = const(2)
@@ -73,6 +62,7 @@ _PIANO_SERVICE = (
 speed = 100
 forward = True
 motorDriver = MotorDriver(True)
+door = ServoDriver()
 
 class BLERobot:
     def __init__(self, ble, name="ble-piano"):
@@ -83,6 +73,8 @@ class BLERobot:
         
         self.speed = 100
         self.forward = True
+        
+        door.down()    
 
         handles = self._ble.gatts_register_services((_PIANO_SERVICE,))
         # print("Registered handles:", handles)
@@ -236,19 +228,26 @@ def robot_update(data):
     if (decoded_data == "EMPTY_CART"):
         print("EMPTY CART")
         oledClearBlack()
-                   
         
+    if (decoded_data == "LOCK_UNLOCK"):
+        
+        if (door.isOpen()):
+            print("Door down")
+            door.down()            
+        else:
+            print("Door up")
+            door.up()
 
-def demo():
+def runRobot():
     ble = bluetooth.BLE()
     robot = BLERobot(ble,"pico2w")
     
-    #oledClearBlack()
+    oledClearBlack()
     
     #display("Hello robot!", 0)
     time.sleep(1) 
 
-    #oledClearBlack()
+    oledClearBlack()
         
     try:
         
@@ -262,10 +261,10 @@ def demo():
         motorDriver.MotorStop('MC')
         motorDriver.MotorStop('MD')
         
-        #oledClearBlack()
+        oledClearBlack()
         
         exit()
 
 
 if __name__ == "__main__":
-    demo()
+    runRobot()
